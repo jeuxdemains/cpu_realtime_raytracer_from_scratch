@@ -1,0 +1,3 @@
+﻿  main.cpp
+D:\Coding\Projects\ray_tracer\ray_tracer\main.cpp(178,15): warning C4305: '+=': truncation from 'double' to 'float'
+  ray_tracer.vcxproj -> D:\Coding\Projects\ray_tracer\Debug\ray_tracer.exe
