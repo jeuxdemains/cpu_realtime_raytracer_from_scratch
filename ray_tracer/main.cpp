@@ -30,6 +30,14 @@ struct Vec3
 		return Vec3(x / div, y / div, z / div);
 	}
 
+	bool operator==(const Vec3& v1)
+	{
+		if (v1.x == x && v1.y == y && v1.z == z)
+			return true;
+
+		return false;
+	}
+
 	Vec3 Normalize() const
 	{
 		double magnitude = sqrt(x * x + y * y + z * z);
@@ -103,12 +111,12 @@ int main()
 		SDL_CreateWindow(
 		"ray tracer", 
 		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
-		W*2, H*2, SDL_WINDOW_SHOWN);
+		W, H, SDL_WINDOW_SHOWN);
 
 	SDL_Renderer* renderer = 
 		SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
 
-	SDL_RenderSetLogicalSize(renderer, W, H);
+	//SDL_RenderSetLogicalSize(renderer, W*2, H*2);
 
 	Vec3 white = { 255, 255, 255 };
 	Vec3 black = { 0, 0, 0 };
@@ -121,14 +129,14 @@ int main()
 	Sphere sphere3(Vec3(W * 0.75, H * 0.75, 0), 45, blue);
 	
 	Sphere light(Vec3(W * 0.5, H * 0.5, -20), 40, white);
-	Sphere lightBulb(Vec3(W * 0.5, H * 0.5, 50), 20, white);
+	Sphere lightBulb(Vec3(W * 0.5, H * 0.5, 60), 40, white);
 
 	std::vector<Sphere> objList = { lightBulb, sphere, sphere2, sphere3 };
 
-	double t;
+	double t, t2;
 	Vec3 pixclr = black;
 	double lightIntensity = 0.5;
-	float theta = 0.0;
+	double theta = 0.0;
 
 	bool isRunning = true;
 	while (isRunning)
@@ -143,8 +151,9 @@ int main()
 			for (int x = 0; x < W; ++x)
 			{
 				pixclr = black;
+				Vec3 pixclrBounce = black;
 
-				const Ray ray(Vec3(x, y, 0), Vec3(0, 0, 2));
+				const Ray ray(Vec3(x, y, 0), Vec3(0, 0, 1));
 				for (auto& sphere : objList)
 				{
 					if (sphere.Intersects(ray, t))
@@ -154,8 +163,28 @@ int main()
 						const Vec3 normal = sphere.GetNormal(pointOfIntersection);
 						const double dt = dot(len.Normalize(), normal.Normalize());
 
-						pixclr = 
-							(sphere.clr + light.clr * dt) * lightIntensity;
+						pixclr = (sphere.clr + light.clr * dt) * lightIntensity;
+
+						//bounce
+						for (auto& sphereB : objList)
+						{
+							const Ray ray2(pointOfIntersection, Vec3(0, 0, 1));
+							if (sphereB.Intersects(ray2, t2))
+							{
+								if (sphereB.clr == white)
+									continue;
+
+								const Vec3 pointOfIntersection2 = ray2.origin + ray2.destination * t2;
+								const Vec3 len2 = light.center - pointOfIntersection2;
+								const Vec3 normal2 = sphereB.GetNormal(pointOfIntersection2);
+								const double dt2 = dot(len2.Normalize(), normal2.Normalize());
+
+								pixclrBounce = (sphereB.clr * dt2) * lightIntensity;
+
+								pixclr = pixclr + pixclrBounce;
+							}
+						}
+
 						PixelShader(pixclr);
 					}
 				}
