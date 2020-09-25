@@ -3,10 +3,15 @@
 #include <math.h>
 #include <vector>
 #include <SDL.h>
+#include <thread>
+#include <future>
+#include "main.h"
 
 struct Vec3
 {
 	double x, y, z;
+	Vec3() {};
+
 	Vec3(double x, double y, double z) :
 		x(x), y(y), z(z) {}
 
@@ -150,6 +155,9 @@ void Reflection(
 	const Vec3& normal,
 	Vec3& pixclr)
 {
+
+	double reflectionIntensity = 1.5;
+
 	for (auto& sphereB : objects)
 	{
 		const Ray ray2(pointOfIntersection, normal * 40);
@@ -161,7 +169,7 @@ void Reflection(
 			const Vec3 normal2 = sphereB->GetNormal(pointOfIntersection2);
 			const double dotP2 = dot(len2.Normalize(), normal2.Normalize());
 
-			Vec3 pixclrBounce = sphereB->clr * dotP2;
+			Vec3 pixclrBounce = sphereB->clr * dotP2 * reflectionIntensity;
 			ColorBoundary(pixclrBounce);
 			pixclr = pixclrBounce + pixclr;
 		}
@@ -186,6 +194,7 @@ Vec3 Trace(const Ray& ray, const Sphere& light, const std::vector<Sphere*>& obje
 			const double dotProduct = dot(len.Normalize(), normal.Normalize());
 
 			pixclr = (sphere->clr + light.clr * dotProduct) * lightIntensity;
+			
 			Reflection(objects, pointOfIntersection, normal, pixclr);
 			ColorBoundary(pixclr);
 		}
@@ -194,11 +203,30 @@ Vec3 Trace(const Ray& ray, const Sphere& light, const std::vector<Sphere*>& obje
 	return pixclr;
 }
 
+struct ScreenData
+{
+	Colors& color;
+	int x, y;
+	Sphere& light;
+	std::vector<Sphere*>& objList;
+	SDL_Renderer* renderer;
+};
+
+Vec3 RenderPixel(const ScreenData& sd)
+{
+	Vec3 pixclr = sd.color.black;
+	Vec3 pixclrBounce = sd.color.black;
+
+	const Ray ray(Vec3(sd.x, sd.y, -3), Vec3(0, 0, 1));
+	pixclr = Trace(ray, sd.light, sd.objList);
+
+	return pixclr;
+}
 
 int main()
 {
-	const int W = 250;
-	const int H = 250;
+	const int W = 300;
+	const int H = 300;
 
 	SDL_Init(SDL_INIT_VIDEO);
 
@@ -224,6 +252,8 @@ int main()
 	double theta = 0.0;
 	bool isRunning = true;
 
+	std::vector<Vec3> pixels(0);
+
 	while (isRunning)
 	{
 		SDL_Event event;
@@ -234,18 +264,14 @@ int main()
 
 		for (int y = 0; y < H; ++y)
 			for (int x = 0; x < W; ++x)
-			{
-				Vec3 pixclr = color.black;
-				Vec3 pixclrBounce = color.black;
-
-				const Ray ray(Vec3(x, y, 0), Vec3(0, 0, 1));
-				pixclr = Trace(ray, light, objList);
-
+			{		
+				ScreenData scrnData = { color, x, y, light, objList, renderer };
+				Vec3 pixclr = RenderPixel(scrnData);
 				SDL_SetRenderDrawColor(renderer, (int)pixclr.x, (int)pixclr.y, (int)pixclr.z, 255);
 				SDL_RenderDrawPoint(renderer, x, y);
 			}
 
-		objList[0]->center.x = W/2 + (W/6) * sin(theta);
+		objList[0]->center.x = (W >> 1) + (W/6) * sin(theta);
 		objList[0]->center.y = H/2.8 + (H/6) * cos(theta/2);
 		objList[1]->center.x = 30 + 10 * sin(theta);
 		objList[1]->center.y = 80 + 10 * cos(theta);
