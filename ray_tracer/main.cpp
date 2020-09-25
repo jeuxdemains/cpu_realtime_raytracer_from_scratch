@@ -339,6 +339,12 @@ int main()
 		if (event.type == SDL_QUIT)
 			isRunning = false;
 
+		if (event.type == SDL_MOUSEMOTION)
+		{
+			light.center.x = event.motion.x;
+			light.center.y = event.motion.y;
+		}
+
 		for (int y = 0; y < H; ++y)
 			for (int x = 0; x < W; ++x)
 			{	
