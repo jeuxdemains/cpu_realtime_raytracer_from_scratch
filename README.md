@@ -1,4 +1,5 @@
-![2](https://user-images.githubusercontent.com/7083803/94318199-a2cdef00-ff90-11ea-81ec-516de200fb7f.png)
+![4](https://user-images.githubusercontent.com/7083803/94328460-74193e00-ffbb-11ea-8632-02d00c156db4.png)
+![2](https://user-images.githubusercontent.com/7083803/94328463-80050000-ffbb-11ea-8266-72d86ffab193.png)
 
 This is a software based real-time ray tracer coded from scratch in C++.
 It demoes just the very basics of the ray tracing in real-time using CPU horse power only.
