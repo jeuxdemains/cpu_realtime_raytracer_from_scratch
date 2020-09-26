@@ -3,10 +3,8 @@
 #include <math.h>
 #include <vector>
 #include <SDL.h>
-#include <thread>
-#include <future>
 #include <string>
-#include "main.h"
+#include <iostream>
 
 struct Vec3
 {
@@ -216,14 +214,16 @@ void Shadow(
 	const std::vector<Sphere*>& objects,
 	const Vec3& pointOfIntersection,
 	const Vec3& normal,
-	Vec3& pixclr)
+	Vec3& pixclr,
+	const Sphere& light)
 {
 	Colors color;
-	double shadowIntensity = 0.5;
+	
+	double shadowIntensity = 0.3;
 
 	for (auto& sphereB : objects)
 	{
-		const Ray ray2(pointOfIntersection, normal * 40);
+		const Ray ray2(pointOfIntersection, light.GetNormal(sphereB->center) * -30);
 		double t2;
 		if (sphereB->Intersects(ray2, t2) && sphereB->name != "world")
 		{
@@ -233,7 +233,7 @@ void Shadow(
 			const double dotP2 = dot(len2.Normalize(), normal2.Normalize());
 
 			double shadow = t2 * shadowIntensity;
-			Vec3 pixclrBounce = color.white * dotP2 / shadow;
+			Vec3 pixclrBounce = light.clr * dotP2 / shadow;
 			ColorBoundary(pixclrBounce);
 
 			pixclr = pixclr - pixclrBounce;
@@ -249,7 +249,7 @@ Vec3 Trace(const Ray& ray, const Sphere& light, const std::vector<Sphere*>& obje
 	for (auto& sphere : objects)
 	{
 		double t;
-		double lightIntensity = 0.4;
+		double lightIntensity = 1.2;
 
 		if (sphere->Intersects(ray, t))
 		{
@@ -262,7 +262,7 @@ Vec3 Trace(const Ray& ray, const Sphere& light, const std::vector<Sphere*>& obje
 			
 
 			if (sphere->name == "world")
-				Shadow(objects, pointOfIntersection, normal, pixclr);
+				Shadow(objects, pointOfIntersection, normal, pixclr, light);
 			else
 				Reflection(objects, pointOfIntersection, normal, pixclr);
 
@@ -293,6 +293,49 @@ Vec3 RenderPixel(const ScreenData& sd)
 	return pixclr;
 }
 
+void HandleEvents(
+	bool& isRunning,
+	Sphere& light,
+	Sphere& world,
+	int& curLightColorId,
+	std::vector<Vec3>& lightColors)
+{
+	SDL_Event event;
+	SDL_PollEvent(&event);
+
+	if (event.type == SDL_QUIT)
+		isRunning = false;
+
+	if (event.type == SDL_MOUSEMOTION)
+	{
+		light.center.x = event.motion.x;
+		light.center.y = event.motion.y;
+	}
+
+	if (event.type == SDL_MOUSEWHEEL)
+	{
+		if (event.wheel.y > 0 && world.center.z > 580)
+		{
+			world.center.z -= 5;
+			world.center.y -= 5;
+
+			light.center.z -= 30;
+		}
+
+		if (event.wheel.y < 0 && world.center.z < 660)
+		{
+			world.center.z += 5;
+			world.center.y += 5;
+
+			light.center.z += 30;
+		}
+
+
+		std::cout << world.center.z << std::endl;
+		event.wheel.y = 0;
+	}
+}
+
 int main()
 {
 	const int W = 300;
@@ -313,46 +356,38 @@ int main()
 
 	Sphere sphere(Vec3(W * 0.5, H * 0.5, 40), 30, color.white);
 	Sphere sphere1(Vec3(W * 0.3, H * 0.5, 20), 15, color.red);
-	Sphere sphere2(Vec3(W * 0.25, H * 0.25, 30), 20, color.green);
+	Sphere sphere2(Vec3(W * 0.25, H * 0.35, 30), 20, color.green);
 	Sphere sphere3(Vec3(W * 0.85, H * 0.65, 40), 35, color.blue);
 
 	Vec3 worldColor = Vec3(94,0,182);
-	Sphere world(Vec3(W * 0.5, H * 4.5, 1350), 1700, worldColor, "world");
+	Sphere world(Vec3(W * 0.5, H * 3.8, 650), 1100, worldColor, "world");
 
-	Sphere light(Vec3(W * 0.1, H * 0.5, 0), 20, color.white);
+	Sphere light(Vec3(W * 0.1, H * 0.5, 0), 40, color.white);
+
+	std::vector<Vec3> lightColors = 
+	{ 
+		color.white, 
+		color.blue, 
+		color.red, 
+		color.green, 
+		color.yellow 
+	};
+	int curLightColorId = 0;
 
 	std::vector<Sphere*> objList = { &world , &sphere, &sphere1, &sphere2, &sphere3 };
 
 	double theta = 0.0;
 	bool isRunning = true;
 
-	std::vector<Vec3> background;
-	for (int y = 0; y < H*2; ++y)
-		for (int x = 0; x < W*2; ++x)
-			background.emplace_back(Vec3(122, 11, 133) - (x + y) / 5);
-
 	while (isRunning)
 	{
-		SDL_Event event;
-		SDL_PollEvent(&event);
-
-		if (event.type == SDL_QUIT)
-			isRunning = false;
-
-		if (event.type == SDL_MOUSEMOTION)
-		{
-			light.center.x = event.motion.x;
-			light.center.y = event.motion.y;
-		}
+		HandleEvents(isRunning, light, world, curLightColorId, lightColors);
 
 		for (int y = 0; y < H; ++y)
 			for (int x = 0; x < W; ++x)
 			{	
 				ScreenData scrnData = { color, x, y, light, objList, renderer };
 				Vec3 pixclr = RenderPixel(scrnData);
-
-				/*if (pixclr > color.white)
-					pixclr = pixclr - background[x + y];*/
 				ColorBoundary(pixclr);
 
 				SDL_SetRenderDrawColor(renderer, (int)pixclr.x, (int)pixclr.y, (int)pixclr.z, 255);
@@ -362,9 +397,9 @@ int main()
 		int startIdx = 1;
 		objList[startIdx]->center.x = (W >> 1) + (W/6) * sin(theta);
 		objList[startIdx]->center.y = H/2.8 + (H/6) * cos(theta/2);
-		objList[startIdx+1]->center.x = 30 + 10 * sin(theta);
-		objList[startIdx+1]->center.y = 80 + 10 * cos(theta);
-		objList[startIdx+2]->center.y = 20 + 10 * sin(theta);
+		objList[startIdx+1]->center.x = objList[startIdx + 1]->center.x + 2 * sin(theta);
+		objList[startIdx+1]->center.y = objList[startIdx + 1]->center.y + 2 * cos(theta);
+		objList[startIdx+2]->center.y = objList[startIdx + 2]->center.y + 2 * sin(theta);
 		objList[startIdx + 3]->center.y = objList[startIdx + 3]->center.y + 2 * -sin(theta);
 		//objList[startIdx + 3]->center.z = 50 + 10 * sin(theta);
 
@@ -378,4 +413,4 @@ int main()
 	SDL_Quit();
 
 	return 0;
-};
+}

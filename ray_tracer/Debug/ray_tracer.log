@@ -1,2 +1,3 @@
 ﻿  main.cpp
+D:\coding\git\cpu_realtime_raytracer_from_scratch\ray_tracer\main.cpp(361,24): warning C4018: '>': signed/unsigned mismatch
   ray_tracer.vcxproj -> D:\coding\git\cpu_realtime_raytracer_from_scratch\Debug\ray_tracer.exe
