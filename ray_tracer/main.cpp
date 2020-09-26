@@ -219,21 +219,21 @@ void Shadow(
 {
 	Colors color;
 	
-	double shadowIntensity = 0.3;
+	double shadowIntensity = 2.3;
 
 	for (auto& sphereB : objects)
 	{
-		const Ray ray2(pointOfIntersection, light.GetNormal(sphereB->center) * -30);
+		const Ray ray2(pointOfIntersection, light.GetNormal(sphereB->center) * -3);
 		double t2;
-		if (sphereB->Intersects(ray2, t2) && sphereB->name != "world")
+		if (sphereB->Intersects(ray2, t2))
 		{
 			const Vec3 pointOfIntersection2 = ray2.origin + ray2.destination * t2;
 			const Vec3 len2 = pointOfIntersection - pointOfIntersection2;
 			const Vec3 normal2 = sphereB->GetNormal(pointOfIntersection2);
 			const double dotP2 = dot(len2.Normalize(), normal2.Normalize());
 
-			double shadow = t2 * shadowIntensity;
-			Vec3 pixclrBounce = light.clr * dotP2 / shadow;
+			Vec3 shadow = color.black + 1 * shadowIntensity;
+			Vec3 pixclrBounce = pixclr * dotP2 * shadow;
 			ColorBoundary(pixclrBounce);
 
 			pixclr = pixclr - pixclrBounce;
@@ -249,7 +249,7 @@ Vec3 Trace(const Ray& ray, const Sphere& light, const std::vector<Sphere*>& obje
 	for (auto& sphere : objects)
 	{
 		double t;
-		double lightIntensity = 1.2;
+		double lightIntensity = 0.62;
 
 		if (sphere->Intersects(ray, t))
 		{
@@ -261,11 +261,15 @@ Vec3 Trace(const Ray& ray, const Sphere& light, const std::vector<Sphere*>& obje
 			pixclr = (sphere->clr + light.clr/2 * dotProduct) * lightIntensity;
 			
 
-			if (sphere->name == "world")
-				Shadow(objects, pointOfIntersection, normal, pixclr, light);
-			else
-				Reflection(objects, pointOfIntersection, normal, pixclr);
+			//if (sphere->name == "world")
+			//	Shadow(objects, pointOfIntersection, normal, pixclr, light);
+			//else
+			//	Reflection(objects, pointOfIntersection, normal, pixclr);
 
+			if (sphere->name != "world")
+				Reflection(objects, pointOfIntersection, normal, pixclr);
+			Shadow(objects, pointOfIntersection, normal, pixclr, light);
+			
 			ColorBoundary(pixclr);
 		}
 	}
@@ -296,9 +300,7 @@ Vec3 RenderPixel(const ScreenData& sd)
 void HandleEvents(
 	bool& isRunning,
 	Sphere& light,
-	Sphere& world,
-	int& curLightColorId,
-	std::vector<Vec3>& lightColors)
+	Sphere& world)
 {
 	SDL_Event event;
 	SDL_PollEvent(&event);
@@ -330,8 +332,6 @@ void HandleEvents(
 			light.center.z += 30;
 		}
 
-
-		std::cout << world.center.z << std::endl;
 		event.wheel.y = 0;
 	}
 }
@@ -364,16 +364,6 @@ int main()
 
 	Sphere light(Vec3(W * 0.1, H * 0.5, 0), 40, color.white);
 
-	std::vector<Vec3> lightColors = 
-	{ 
-		color.white, 
-		color.blue, 
-		color.red, 
-		color.green, 
-		color.yellow 
-	};
-	int curLightColorId = 0;
-
 	std::vector<Sphere*> objList = { &world , &sphere, &sphere1, &sphere2, &sphere3 };
 
 	double theta = 0.0;
@@ -381,7 +371,7 @@ int main()
 
 	while (isRunning)
 	{
-		HandleEvents(isRunning, light, world, curLightColorId, lightColors);
+		HandleEvents(isRunning, light, world);
 
 		for (int y = 0; y < H; ++y)
 			for (int x = 0; x < W; ++x)
